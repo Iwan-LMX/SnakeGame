@@ -2,6 +2,80 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
+//www.elegoo.com
+//2016.12.09
+
+// Arduino pin numbers
+const int SW_pin1 = 2; // digital pin connected to switch output
+const int X_pin1 = A0; // analog pin connected to X output
+const int Y_pin1 = A1; // analog pin connected to Y output
+
+const int SW_pin2 = 1; // digital pin connected to switch output
+const int X_pin2 = A2; // analog pin connected to X output
+const int Y_pin2 = A3; // analog pin connected to Y output
+
+
+int field[8][8] = {
+{0,0,0,1,0,0,1,0},
+{0,0,0,1,0,0,1,0},
+{0,0,0,1,0,0,1,0},
+{0,0,0,1,0,0,1,0},
+{0,0,0,1,0,0,1,0},
+{0,0,0,1,0,0,1,0},
+{0,0,0,1,0,0,1,0},
+{0,0,0,1,0,0,0,0}
+};
+
+void setup() {
+  pinMode(SW_pin1, INPUT);
+  digitalWrite(SW_pin1, HIGH);
+
+  pinMode(SW_pin2, INPUT);
+  digitalWrite(SW_pin2, HIGH);
+   
+  Serial.begin(9600);
+}
+void printField () {
+    for (int i = 0; i < 8; i ++) {
+      for (int j = 0; j < 8; j++) {
+        Serial.print(field[i][j]);
+        Serial.print("\r");
+      }
+    Serial.print("\n");
+    }
+}
+void loop() {
+  Serial.print("Switch1:  ");
+  Serial.print(digitalRead(SW_pin1));
+  Serial.print("\n");
+  Serial.print("X-axis: ");
+  Serial.print(analogRead(X_pin1));
+  Serial.print("\n");
+  Serial.print("Y-axis: ");
+  Serial.println(analogRead(Y_pin1));
+  Serial.print("\n\n");
+
+  Serial.print("Switch2:  ");
+  Serial.print(digitalRead(SW_pin2));
+  Serial.print("\n");
+  Serial.print("X-axis: ");
+  Serial.print(analogRead(X_pin2));
+  Serial.print("\n");
+  Serial.print("Y-axis: ");
+  Serial.println(analogRead(Y_pin2));
+  Serial.print("\n\n");
+  delay(1000);
+
+  printField ();
+  Serial.print("\n");
+  delay(500);
+}
+
+
+
+
+
+
 Adafruit_SSD1306 oled(128, 64, &Wire, -1);
 
 #define RIGHT 0
@@ -26,37 +100,38 @@ const uint8_t block[] PROGMEM = {
   0xf0, //B1111000
 };
 typedef struct Snake{
-  int snake_head_x;
-  int snake_head_y;
-  uint8_t snake_len = 2;
-  uint8_t snake_dir = RIGHT;
+  int y; //head row
+  int x; //head column
+  uint8_t len;
+  uint8_t dir;
+  //x-axis represend column, y-axis represend row
+  uint8_t y[100];
+  uint8_t x[100];
+  // int level = 1;
+  // int snake_speed = 150;
 }Snake;
 //player 1 and 2's snakes head positions, length, moving directions
 Snake snake1 = {7, 1, 2, RIGHT}
 Snake snake2 = {1, 7, 2, Left}
 
-uint8_t x[100];
-uint8_t y[100];
 
 typedef struct Food{
-  uint8_t food_x;
-  uint8_t food_y;
-  bool food_eaten = true;
+  uint8_t y; //row
+  uint8_t x; //column
 }Food;
 typedef struct Poo{
-  uint8_t poo_x;
-  uint8_t poo_y;
+  uint8_t y; //row
+  uint8_t x; //column
   bool poo_eaten = true;
 }Poo;
+Poo poo1, poo2;
 
 
 bool game_over = false;
 //int score = 0;
-int level = 1;
-int snake_speed = 150;
 int i;
 
-//按键扫描函数
+//scan controler/key for moving
 void keyScan(void)
 {
   static unsigned char keyUp = 1;
@@ -139,7 +214,7 @@ void screen(void)
 
 void draw_food(void)
 {
-  int food_out = 0; //判断食物是否在蛇体内
+  int food_out = 0; //food is born in a same position with snake
 
   if (food_eaten)
   {
@@ -147,12 +222,19 @@ void draw_food(void)
     {
       food_out = 1;
 
-      food_x = (uint8_t)(random(4, 100) / 4) * 4;
-      food_y = (uint8_t)(random(4, 60) / 4) * 4;
+      food_x = (uint8_t)(random()%8);
+      food_y = (uint8_t)(random()%8);
 
-      for (int i = snake_len - 1; i > 0; i--) //遍历整个蛇身方块，若食物在蛇身内则重新生成
+      for (int i = snake1.len - 1; i > 0; i--) //from tail to head to check if food is generate in the snake body
       {
-        if (food_x == x[i] && food_y == y[i])
+        if (food_x == snake1.x[i] && food_y == snake1.y[i])
+        {
+          food_out = 0;
+        }
+      }
+      for (int i = snake2.len - 1; i > 0; i--) //from tail to head to check if food is generate in the snake body
+      {
+        if (food_x == snake2.x[i] && food_y == snake2.y[i])
         {
           food_out = 0;
         }
@@ -163,27 +245,65 @@ void draw_food(void)
   food_eaten = false;
 }
 
-void snake_move(void)
+void snake1_move(void)
 {
-  switch (snake_dir) {
+  switch (snake1.dir) {
     case RIGHT:
-      snake_head_x += 4;
+      snake1.x ++;
       break;
     case UP:
-      snake_head_y -= 4;
+      snake1.y --;
       break;
     case LEFT:
-      snake_head_x -= 4;
+      snake1.x --;
       break;
     case DOWN:
-      snake_head_y += 4;
+      snake1.y ++;
       break;
   }
 
-  if ((snake_head_x == food_x) && (snake_head_y == food_y))
+  if ((snake1.x == food. ) && (snake2.y == food_y))
   {
     food_eaten = true; //可重新生成食物
-    snake_len++;
+    snake1.len++;
+  }
+  if ((snake1.x == poo.x) && (snake2.y == poo.y))
+  {
+    food_eaten = true; //可重新生成食物
+    snake1.snake_len--;
+  }
+
+  for (i = snake_len - 1; i > 0; i--)
+  {
+    x[i] = x[i - 1];
+    y[i] = y[i - 1];
+  }
+  x[0] = snake_head_x;
+  y[0] = snake_head_y;
+
+  check_snake_die();
+}
+void snake2_move(void)
+{
+  switch (snake2.snake_dir) {
+    case RIGHT:
+      snake2.snake_head_x ++;
+      break;
+    case UP:
+      snake2.snake_head_y --;
+      break;
+    case LEFT:
+      snake2.snake_head_x --;
+      break;
+    case DOWN:
+      snake2.snake_head_y ++;
+      break;
+  }
+
+  if ((snake1.snake_head_x == food_x) && (snake2.snake_head_y == food_y))
+  {
+    food_eaten = true; //可重新生成食物
+    snake1.snake_len++;
     score++;
     level = score / 5 + 1;
     snake_speed -= level;
@@ -199,7 +319,6 @@ void snake_move(void)
 
   check_snake_die();
 }
-
 void draw_game_over()
 {
   oled.clearDisplay();//清屏
@@ -258,7 +377,8 @@ void loop()
     draw_game_over();
   } else {
     keyScan();
-    snake_move();
+    snake1_move();
+    snake2_move();
     draw_food();
     screen();
   }
