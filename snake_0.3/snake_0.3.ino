@@ -23,7 +23,6 @@ typedef struct Snake {
   uint8_t len;
   uint8_t dir;
   // x-axis represent column, y-axis represent row
-  bool eaten;
   uint8_t y[100];
   uint8_t x[100];
   // int level = 1;
@@ -49,8 +48,8 @@ int valueX = 0;
 int valueY = 0;
 
 // Player 1 and 2's snakes head positions, length, moving directions
-Snake snake1 = {7, 1, 2, RIGHT, 0};
-Snake snake2 = {1, 7, 2, LEFT, 0};
+Snake snake1 = {7, 1, 2, RIGHT};
+Snake snake2 = {1, 7, 2, LEFT};
 
 Food food;
 Poo poo1, poo2;
@@ -108,15 +107,19 @@ void keyScan(void) {
   }
 }
 
-void drawSnake(int r, int c){  field[r][c] =1;}
-void draw_food(int r, int c){  field[r][c] =1;}
-void draw_poo(){
-    if(!poo1.eaten
-){
+void drawSnake(int r, int c){
+  field[r][c] = 1;
+}
+
+void drawFood(int r, int c) {
+  field[r][c] = 1;
+}
+
+void draw_poo() {
+    if (!poo1.eaten) {
         field[poo1.y][poo1.x]=1;
     }
-    if(!poo2.eaten
-){
+    if (!poo2.eaten){
         field[poo2.y][poo2.x]=1;
     }
 }
@@ -240,8 +243,7 @@ void refresh_poo(int time){
          = true;
     }
 }
-void snake1_move(void)
-{
+void snake1_move(void) {
   switch (snake1.dir) {
     case RIGHT:
       snake1.headX++;
@@ -256,11 +258,9 @@ void snake1_move(void)
       snake1.headY++;
       break;
   }
-  snake1.eaten = false;
   if ((snake1.headX == food.x ) && (snake1.headY == food.y))
   {
     food.eaten = true; //allow to create a new food
-    snake1.eaten = true;
     snake1.len++;
   }
   //eat it's own poo
@@ -279,15 +279,12 @@ void snake1_move(void)
   }
   win2 = check_snake_die(snake1, snake2);
   //player1 eat a food
-  if (snake1.eaten) {
-    for (int i = snake1.len - 1; i > 0; i--)
-    {
+  for (int i = snake1.len - 1; i > 0; i--) {
       snake1.x[i] = snake1.x[i - 1];
       snake1.y[i] = snake1.y[i - 1];
-    }
-    snake1.x[0] = snake1.headX;
-    snake1.y[0] = snake1.headY;
   }
+  snake1.x[0] = snake1.headX;
+  snake1.y[0] = snake1.headY;
 }
 void snake2_move(void)
 {
@@ -305,11 +302,9 @@ void snake2_move(void)
       snake2.headY ++;
       break;
   }
-  snake2.eaten = false;
   if ((snake2.headX == food.x ) && (snake2.headY == food.y))
   {
     food.eaten = true; //allow to create a new food
-    snake2.eaten = true;
     snake2.len++;
   }
   //eat player1's poo
@@ -328,15 +323,12 @@ void snake2_move(void)
   }
   win1 = check_snake_die(snake2, snake1);
   //playe2 eat a food
-  if(snake2.eaten){
-    for (int i = snake2.len - 1; i > 0; i--)
-    {
-      snake2.x[i] = snake2.x[i - 1];
-      snake2.y[i] = snake2.y[i - 1];
-    }
-    snake2.x[0] = snake2.headX;
-    snake2.y[0] = snake2.headY;
+  for (int i = snake2.len - 1; i > 0; i--) {
+    snake2.x[i] = snake2.x[i - 1];
+    snake2.y[i] = snake2.y[i - 1];
   }
+  snake2.x[0] = snake2.headX;
+  snake2.y[0] = snake2.headY;
 }
 
 void loop() {
