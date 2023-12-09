@@ -6,12 +6,16 @@
 #define UP    2
 #define DOWN  3
 
+// Joystick definitions
+#define JOYSTICK_LOWER_THRESHOLD -256
+#define JOYSTICK_UPPER_THRESHOLD 256
+
 // Arduino pin numbers
 const int SW_pin1 = 2; // digital pin connected to switch output
 const int X_pin1 = A0; // analog pin connected to X output
 const int Y_pin1 = A1; // analog pin connected to Y output
 
-const int SW_pin2 = 1; // digital pin connected to switch output
+const int SW_pin2 = 3; // digital pin connected to switch output
 const int X_pin2 = A2; // analog pin connected to X output
 const int Y_pin2 = A3; // analog pin connected to Y output
 const int Delay = 500;
@@ -47,7 +51,7 @@ typedef struct Poo {
 int valueX = 0;
 int valueY = 0;
 
-// Player 1 and 2's snakes head positions, length, moving directions
+// Player 1 and 2's snakes' head positions, lengths and moving directions
 Snake snake1 = {7, 1, 2, RIGHT};
 Snake snake2 = {1, 7, 2, LEFT};
 
@@ -55,14 +59,14 @@ Food food;
 Poo poo1, poo2;
 
 int field[8][8] = {
-    {0,0,0,1,0,0,1,0},
-    {0,0,0,1,0,0,1,0},
-    {0,0,0,1,0,0,1,0},
-    {0,0,0,1,0,0,1,0},
-    {0,0,0,1,0,0,1,0},
-    {0,0,0,1,0,0,1,0},
-    {0,0,0,1,0,0,1,0},
-    {0,0,0,1,0,0,0,0}
+  {0,0,0,1,0,0,1,0},
+  {0,0,0,1,0,0,1,0},
+  {0,0,0,1,0,0,1,0},
+  {0,0,0,1,0,0,1,0},
+  {0,0,0,1,0,0,1,0},
+  {0,0,0,1,0,0,1,0},
+  {0,0,0,1,0,0,1,0},
+  {0,0,0,1,0,0,0,0}
 };
 
 // win state for 2 players
@@ -71,60 +75,78 @@ bool win2 = false;
 //int score = 0;
 
 ////// Function signatures //////
-void keyScan(void);
+void getInput(const int pinX, const int pinY);
+void getInputs(void);
 void drawSnake(int r, int c);
 
-//scan controller/key for moving
-void keyScan(void) {
-  //judge player1's direction
-  valueX = X_pin1 - 512;
-  valueY = Y_pin1 - 512;
-  if (abs(valueX) > abs(valueY)) {
-    if (valueX > 0) {
-      snake1.dir = UP;
-    } else {
-      snake1.dir = DOWN;
+// Helper function for getInputs
+// Sets snake position based on joystick state
+void getInput(const int pinX, const int pinY, struct Snake snake) {
+  valueX = pinX - 512;
+  valueY = pinY - 512;
+  bool valueXLow = valueX < JOYSTICK_LOWER_THRESHOLD;
+  bool valueXHigh = valueX > JOYSTICK_UPPER_THRESHOLD;
+  bool valueYLow = valueY < JOYSTICK_LOWER_THRESHOLD;
+  bool valueYHigh = valueY > JOYSTICK_UPPER_THRESHOLD;
+
+  if (!valueXLow && !valueXHigh) {
+    if (valueYLow) {
+      snake.dir = DOWN;
+    } else if (valueYHigh) {
+      snake.dir = UP;
     }
-  } else if (abs(valueX) < abs(valueY)) {
-    if (valueY > 0)
-      snake1.dir = RIGHT;
-    else
-      snake1.dir = LEFT;
-  }
-  //judge player2's direction
-  valueX = X_pin2 - 512;
-  valueY = Y_pin2 - 512;
-  if (abs(valueX) > abs(valueY)) {
-    if (valueX > 0)
-      snake2.dir = UP;
-    else
-      snake2.dir = DOWN;
-  } else if (abs(valueX) < abs(valueY)) {
-    if (valueY > 0)
-      snake2.dir = RIGHT;
-    else
-      snake2.dir = LEFT;
+  } else if (!valueYLow && !valueYHigh) {
+    if (valueXLow) { 
+      snake.dir = LEFT;
+    } else if (valueXHigh) {
+      snake.dir = RIGHT;
+    }
+  } else {
+    if (abs(valueX) > abs(valueY)) {
+      if (valueX > 0) {
+        snake.dir = RIGHT;
+      } else {
+        snake.dir = LEFT;
+      }
+    } else {
+      if (valueY > 0) {
+        snake.dir = UP;
+      } else {
+        snake.dir = DOWN;
+      }
+    }
   }
 }
 
-void drawSnake(int r, int c){
+// Sets snake1 and snake2 directions based on current position of joysticks
+void getInputs(void) {
+  // judge player1's direction
+  getInput(X_pin1, Y_pin1, snake1);
+  //judge player2's direction
+  getInput(X_pin2, Y_pin2, snake2);
+}
+
+// Sets snake cell at position (r, c) on grid
+void drawSnake(int r, int c) {
   field[r][c] = 1;
 }
 
+// Sets food cell at position (r, c) on grid
 void drawFood(int r, int c) {
   field[r][c] = 1;
 }
 
-void draw_poo() {
-    if (!poo1.eaten) {
-        field[poo1.y][poo1.x]=1;
-    }
-    if (!poo2.eaten){
-        field[poo2.y][poo2.x]=1;
-    }
+// Sets poo1 and poo2 cells at their coordinates on grid unless eaten
+void drawPoo() {
+  if (!poo1.eaten) {
+    field[poo1.y][poo1.x] = 1;
+  }
+  if (!poo2.eaten){
+      field[poo2.y][poo2.x] = 1;
+  }
 }
 
-void screen(void) {
+void renderDisplay(void) {
     memset(field, 0, 64*sizeof(int));
     //draw snake1
     for (int i = 0; i < snake1.len; i++) {
@@ -135,14 +157,14 @@ void screen(void) {
         drawSnake(snake2.y[i], snake2.x[i]);
     }
     //draw food in
-    draw_food(food.y, food.x);
+    drawFood(food.y, food.x);
     //draw poo in
-    draw_poo();
+    drawPoo();
 }
 
 bool check_snake_die(Snake snakeA, Snake snakeB)
 {
-  //too much short!
+  // too much short!
   if(snakeA.len <= 1){
     return true;
   }
@@ -163,7 +185,7 @@ bool check_snake_die(Snake snakeA, Snake snakeB)
       }
     }
   }
-  for (int i = 0; i<snakeB.len; i++){
+  for (int i = 0; i < snakeB.len; i++){
     if(snakeA.x == snakeB.x[i] && snakeA.y == snakeB.y[i]){
       return true;
     }
@@ -172,28 +194,23 @@ bool check_snake_die(Snake snakeA, Snake snakeB)
   return false;
 }
 
-void generate_food(void)
+void doFoodCheck(void)
 {
-  int food_out = 0; //food is born in a same position with snake
+  int food_out = 0; // food is born in a same position with snake
 
-  if (food.eaten)
-  {
-    while (food_out == 0)
-    {
+  if (food.eaten) {
+    while (food_out == 0) {
       food_out = 1;
 
       food.x = (uint8_t)(random(8)); // random number from 0 to 7
       food.y = (uint8_t)(random(8));
 
-      for (int i = snake1.len - 1; i > 0; i--) //from tail to head to check if food is generate in the snake body
-      {
-        if (food.x == snake1.x[i] && food.y == snake1.y[i])
-        {
+      for (int i = snake1.len - 1; i > 0; i--) { //from tail to head to check if food is generate in the snake body
+        if (food.x == snake1.x[i] && food.y == snake1.y[i]) {
           food_out = 0;
         }
       }
-      for (int i = snake2.len - 1; i > 0; i--) //from tail to head to check if food is generate in the snake body
-      {
+      for (int i = snake2.len - 1; i > 0; i--) { //from tail to head to check if food is generate in the snake body
         if (food.x == snake2.x[i] && food.y == snake2.y[i])
         {
           food_out = 0;
@@ -205,7 +222,7 @@ void generate_food(void)
   food.eaten = false;
 }
 //generate a poo
-void generate_poo(void){
+void doPooCheck(void){
     //player1 use skill, and poo1 has been eaten
     if(SW_pin1 && poo1.eaten
 ){
@@ -216,8 +233,7 @@ void generate_poo(void){
         poo1.time = 5000; //I think 5s is eough.
     }
     //player2 use skill, and poo2 has been eaten
-    if(SW_pin2 && poo2.eaten
-){
+    if (SW_pin2 && poo2.eaten){
         poo2.eaten
      = false;
         poo2.x = snake2.x[snake2.len - 1];
@@ -243,7 +259,7 @@ void refresh_poo(int time){
          = true;
     }
 }
-void snake1_move(void) {
+void moveSnake1(void) {
   switch (snake1.dir) {
     case RIGHT:
       snake1.headX++;
@@ -286,7 +302,7 @@ void snake1_move(void) {
   snake1.x[0] = snake1.headX;
   snake1.y[0] = snake1.headY;
 }
-void snake2_move(void)
+void moveSnake2(void)
 {
   switch (snake2.dir) {
     case RIGHT:
@@ -339,7 +355,7 @@ void loop() {
   Serial.print(analogRead(X_pin1));
   Serial.print("\n");
   Serial.print("Y-axis: ");
-  Serial.println(analogRead(Y_pin1));
+  Serial.print(analogRead(Y_pin1));
   Serial.print("\n\n");
 
   Serial.print("Switch2:  ");
@@ -349,29 +365,28 @@ void loop() {
   Serial.print(analogRead(X_pin2));
   Serial.print("\n");
   Serial.print("Y-axis: ");
-  Serial.println(analogRead(Y_pin2));
+  Serial.print(analogRead(Y_pin2));
   Serial.print("\n\n");
   delay(Delay);
 
-  printField ();
+  printField();
   Serial.print("\n");
   delay(500);
 
-    if(win1 || win2)
-    {
-        //shoking the player
-        //draw_game_over();
-    } else {
-        keyScan();
-        snake1_move();
-        snake2_move();
-        generate_food();
-        generate_poo();
-        screen();
-     }
-    //here need a number for game speed, I just assume it's 500
-    //refresh the existed poo
-    refresh_poo(Delay);
+  if (win1 || win2) {
+      //shoking the player
+      //draw_game_over();
+  } else {
+    getInputs();
+    moveSnake1();
+    moveSnake2();
+    doFoodCheck();
+    doPooCheck();
+    renderDisplay();
+  }
+  // here need a number for game speed, I just assume it's 500
+  // refresh the existed poo
+  refresh_poo(Delay);
 }
 
 // runs on startup
