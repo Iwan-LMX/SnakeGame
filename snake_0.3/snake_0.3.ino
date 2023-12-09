@@ -43,7 +43,7 @@ typedef struct Poo {
   uint8_t y; // row
   uint8_t x; // column
   bool eaten = true;
-  uint8_t time; // exist time for a poo
+  int time; // exist time for a poo
 } Poo;
 
 ////// Global game state variables //////
@@ -53,7 +53,7 @@ int valueY = 0;
 
 // Player 1 and 2's snakes' head positions, lengths and moving directions
 Snake snake1 = {7, 1, 2, RIGHT};
-Snake snake2 = {1, 7, 2, LEFT};
+// Snake snake2 = {1, 7, 2, LEFT};
 
 Food food;
 Poo poo1, poo2;
@@ -81,38 +81,52 @@ void drawSnake(int r, int c);
 
 // Helper function for getInputs
 // Sets snake position based on joystick state
-void getInput(const int pinX, const int pinY, struct Snake snake) {
-  valueX = pinX - 512;
-  valueY = pinY - 512;
+void getInput(const int pinX, const int pinY, struct Snake *snake) {
+  valueX = analogRead(pinX) - 512;
+  valueY = analogRead(pinY) - 512;
   bool valueXLow = valueX < JOYSTICK_LOWER_THRESHOLD;
   bool valueXHigh = valueX > JOYSTICK_UPPER_THRESHOLD;
   bool valueYLow = valueY < JOYSTICK_LOWER_THRESHOLD;
   bool valueYHigh = valueY > JOYSTICK_UPPER_THRESHOLD;
 
+  if (valueXLow) {
+    Serial.print("valueXLow = true\n");
+  } else {
+    Serial.print("valueXLow = false\n");
+  }
+  if (valueXHigh) {
+    Serial.print("valueXHigh = true\n");
+  } else {
+    Serial.print("valueXHigh = false\n");
+  }
+
   if (!valueXLow && !valueXHigh) {
+    Serial.print("first block\n");
     if (valueYLow) {
-      snake.dir = DOWN;
+      snake->dir = DOWN;
     } else if (valueYHigh) {
-      snake.dir = UP;
+      snake->dir = UP;
     }
   } else if (!valueYLow && !valueYHigh) {
+    Serial.print("second block\n");
     if (valueXLow) { 
-      snake.dir = LEFT;
+      snake->dir = LEFT;
     } else if (valueXHigh) {
-      snake.dir = RIGHT;
+      snake->dir = RIGHT;
     }
   } else {
+    Serial.print("third block\n");
     if (abs(valueX) > abs(valueY)) {
       if (valueX > 0) {
-        snake.dir = RIGHT;
+        snake->dir = RIGHT;
       } else {
-        snake.dir = LEFT;
+        snake->dir = LEFT;
       }
     } else {
       if (valueY > 0) {
-        snake.dir = UP;
+        snake->dir = UP;
       } else {
-        snake.dir = DOWN;
+        snake->dir = DOWN;
       }
     }
   }
@@ -121,9 +135,9 @@ void getInput(const int pinX, const int pinY, struct Snake snake) {
 // Sets snake1 and snake2 directions based on current position of joysticks
 void getInputs(void) {
   // judge player1's direction
-  getInput(X_pin1, Y_pin1, snake1);
+  getInput(X_pin1, Y_pin1, &snake1);
   //judge player2's direction
-  getInput(X_pin2, Y_pin2, snake2);
+  // getInput(X_pin2, Y_pin2, snake2);
 }
 
 // Sets snake cell at position (r, c) on grid
@@ -153,9 +167,9 @@ void renderDisplay(void) {
         drawSnake(snake1.y[i], snake1.x[i]);
     }
     //draw snake2
-    for (int i = 0; i < snake2.len; i++) {
-        drawSnake(snake2.y[i], snake2.x[i]);
-    }
+    // for (int i = 0; i < snake2.len; i++) {
+    //    drawSnake(snake2.y[i], snake2.x[i]);
+    // }
     //draw food in
     drawFood(food.y, food.x);
     //draw poo in
@@ -169,7 +183,7 @@ bool check_snake_die(Snake snakeA, Snake snakeB)
     return true;
   }
   //head on border
-  if (snakeA.x < 0 || snakeA.x > 7 || snakeA.y < 0 || snakeA.y > 7)
+  if (snakeA.headX < 0 || snakeA.headX > 7 || snakeA.headY < 0 || snakeA.headY > 7)
   {
     return true;
   }
@@ -179,14 +193,14 @@ bool check_snake_die(Snake snakeA, Snake snakeB)
   {
     for (int i = 1; i < snakeA.len; i++)
     {
-      if (snakeA.x == snakeA.x[i] && snakeA.y == snakeA.y[i])
+      if (snakeA.headX == snakeA.x[i] && snakeA.headY == snakeA.y[i])
       {
         return true;
       }
     }
   }
   for (int i = 0; i < snakeB.len; i++){
-    if(snakeA.x == snakeB.x[i] && snakeA.y == snakeB.y[i]){
+    if(snakeA.headX == snakeB.x[i] && snakeA.headY == snakeB.y[i]){
       return true;
     }
   }
@@ -210,12 +224,12 @@ void doFoodCheck(void)
           food_out = 0;
         }
       }
-      for (int i = snake2.len - 1; i > 0; i--) { //from tail to head to check if food is generate in the snake body
-        if (food.x == snake2.x[i] && food.y == snake2.y[i])
-        {
-          food_out = 0;
-        }
-      }
+//      for (int i = snake2.len - 1; i > 0; i--) { //from tail to head to check if food is generate in the snake body
+//        if (food.x == snake2.x[i] && food.y == snake2.y[i])
+//        {
+//          food_out = 0;
+//        }
+//      }
     }
   }
 
@@ -236,8 +250,8 @@ void doPooCheck(void){
     if (SW_pin2 && poo2.eaten){
         poo2.eaten
      = false;
-        poo2.x = snake2.x[snake2.len - 1];
-        poo2.y = snake2.y[snake2.len - 1];
+        //poo2.x = snake2.x[snake2.len - 1];
+        //poo2.y = snake2.y[snake2.len - 1];
         poo2.time = 5000; //I think 5s is eough.
     }
 }
@@ -274,6 +288,14 @@ void moveSnake1(void) {
       snake1.headY++;
       break;
   }
+  if (snake1.headX < 0) {
+    snake1.headX = 7;
+  }
+  if (snake1.headY < 0) {
+    snake1.headY = 7;
+  }
+  snake1.headX = snake1.headX % 8;
+  snake1.headY = snake1.headY % 8;
   if ((snake1.headX == food.x ) && (snake1.headY == food.y))
   {
     food.eaten = true; //allow to create a new food
@@ -293,7 +315,7 @@ void moveSnake1(void) {
  = true; //allow player2 to poo
     snake1.len--;
   }
-  win2 = check_snake_die(snake1, snake2);
+  //win2 = check_snake_die(snake1, snake2);
   //player1 eat a food
   for (int i = snake1.len - 1; i > 0; i--) {
       snake1.x[i] = snake1.x[i - 1];
@@ -302,50 +324,59 @@ void moveSnake1(void) {
   snake1.x[0] = snake1.headX;
   snake1.y[0] = snake1.headY;
 }
-void moveSnake2(void)
-{
-  switch (snake2.dir) {
-    case RIGHT:
-      snake2.headX ++;
-      break;
-    case UP:
-      snake2.headY --;
-      break;
-    case LEFT:
-      snake2.headX --;
-      break;
-    case DOWN:
-      snake2.headY ++;
-      break;
-  }
-  if ((snake2.headX == food.x ) && (snake2.headY == food.y))
-  {
-    food.eaten = true; //allow to create a new food
-    snake2.len++;
-  }
-  //eat player1's poo
-  if ((snake2.headX == poo1.x) && (snake2.headY == poo1.y))
-  {
-    poo1.eaten
- = true; //allow player1 to poo
-    snake2.len--;
-  }
-  //eat player2's poo
-  if ((snake2.headX == poo2.x) && (snake2.headY == poo2.y))
-  {
-    poo2.eaten
- = true; //allow player2 to poo
-    snake2.len--;
-  }
-  win1 = check_snake_die(snake2, snake1);
-  //playe2 eat a food
-  for (int i = snake2.len - 1; i > 0; i--) {
-    snake2.x[i] = snake2.x[i - 1];
-    snake2.y[i] = snake2.y[i - 1];
-  }
-  snake2.x[0] = snake2.headX;
-  snake2.y[0] = snake2.headY;
-}
+
+//void moveSnake2(void)
+//{
+//  switch (snake2.dir) {
+//    case RIGHT:
+//      snake2.headX ++;
+//      break;
+//    case UP:
+//      snake2.headY --;
+//      break;
+//    case LEFT:
+//      snake2.headX --;
+//      break;
+//    case DOWN:
+//      snake2.headY ++;
+//      break;
+//  }
+//  if (snake2.headX < 0) {
+//    snake2.headX = 7;
+//  }
+//  if (snake2.headY < 0) {
+//    snake2.headY = 7;
+//  }
+//  snake2.headX = snake2.headX % 8;
+//  snake2.headY = snake2.headY % 8;
+//  if ((snake2.headX == food.x ) && (snake2.headY == food.y))
+//  {
+//    food.eaten = true; //allow to create a new food
+//    snake2.len++;
+//  }
+//  //eat player1's poo
+//  if ((snake2.headX == poo1.x) && (snake2.headY == poo1.y))
+//  {
+//    poo1.eaten
+// = true; //allow player1 to poo
+//    snake2.len--;
+//  }
+//  //eat player2's poo
+//  if ((snake2.headX == poo2.x) && (snake2.headY == poo2.y))
+//  {
+//    poo2.eaten
+// = true; //allow player2 to poo
+//    snake2.len--;
+//  }
+//  win1 = check_snake_die(snake2, snake1);
+//  //playe2 eat a food
+//  for (int i = snake2.len - 1; i > 0; i--) {
+//    snake2.x[i] = snake2.x[i - 1];
+//    snake2.y[i] = snake2.y[i - 1];
+//  }
+//  snake2.x[0] = snake2.headX;
+//  snake2.y[0] = snake2.headY;
+//}
 
 void loop() {
   Serial.print("Switch1:  ");
@@ -371,7 +402,7 @@ void loop() {
 
   printField();
   Serial.print("\n");
-  delay(500);
+  delay(2000);
 
   if (win1 || win2) {
       //shoking the player
@@ -379,7 +410,7 @@ void loop() {
   } else {
     getInputs();
     moveSnake1();
-    moveSnake2();
+    //moveSnake2();
     doFoodCheck();
     doPooCheck();
     renderDisplay();
