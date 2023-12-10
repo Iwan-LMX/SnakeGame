@@ -11,13 +11,13 @@
 #define JOYSTICK_UPPER_THRESHOLD 256
 
 // Arduino pin numbers
-const int SW_pin1 = 2; // digital pin connected to switch output
+const int SW_pin1 = 11; // digital pin connected to switch output
 const int X_pin1 = A0; // analog pin connected to X output
 const int Y_pin1 = A1; // analog pin connected to Y output
 
-const int SW_pin2 = 3; // digital pin connected to switch output
-const int X_pin2 = A2; // analog pin connected to X output
-const int Y_pin2 = A3; // analog pin connected to Y output
+const int SW_pin2 = 9; // digital pin connected to switch output
+const int X_pin2 = A6; // analog pin connected to X output
+const int Y_pin2 = A7; // analog pin connected to Y output
 const int Delay = 500;
 
 ////// Snake game struct definitions //////
@@ -58,16 +58,167 @@ Snake snake1 = {7, 1, 2, RIGHT};
 Food food;
 Poo poo1, poo2;
 
+const int ser = 2; 
+const int srclk = 4; 
+const int rclk = 3;   
+const int del = 1;
+const int p2led = 12;
+const int p1led = 10;
+
+// testing
+int led = 0;
+int timer = 0;
+
 int field[8][8] = {
-  {0,0,0,1,0,0,1,0},
-  {0,0,0,1,0,0,1,0},
-  {0,0,0,1,0,0,1,0},
-  {0,0,0,1,0,0,1,0},
-  {0,0,0,1,0,0,1,0},
-  {0,0,0,1,0,0,1,0},
-  {0,0,0,1,0,0,1,0},
-  {0,0,0,1,0,0,0,0}
+{0,0,0,0,0,0,0,0},
+{0,1,0,0,0,0,1,0},
+{0,1,0,0,0,0,1,0},
+{0,1,0,0,0,0,1,0},
+{0,0,0,0,0,0,0,0},
+{0,1,0,0,0,0,1,0},
+{0,0,1,1,1,1,0,0},
+{0,0,0,0,0,0,0,0}
 };
+
+void display_layer(int field_array[8][8], int layer) {
+  for(int i = 7; i >= 0; i--){
+    
+    if(field_array[layer][i] == 1){
+      digitalWrite(ser, LOW);
+    }
+    else{
+      digitalWrite(ser, HIGH);
+    }
+    delayMicroseconds(del);
+    digitalWrite(srclk, HIGH);
+    delayMicroseconds(del);
+    digitalWrite(srclk, LOW);
+    delayMicroseconds(del);
+  }
+ 
+  for(int i = 7; i >= 0; i--){
+    if (i == layer){
+      digitalWrite(ser, HIGH);
+    }
+    else {
+      digitalWrite(ser, LOW);
+    }
+    delayMicroseconds(del);
+    digitalWrite(srclk, HIGH);
+    delayMicroseconds(del);
+    digitalWrite(srclk, LOW);
+    delayMicroseconds(del);
+  }
+  delayMicroseconds(del);
+  digitalWrite(rclk, HIGH);
+  delayMicroseconds(del);
+  digitalWrite(rclk, LOW);
+  delayMicroseconds(del);
+}
+
+void display(int field_array[8][8]) {
+  for(int i = 0; i < 8; i++){
+    delayMicroseconds(del);
+    display_layer(field_array, i);
+  }
+  
+}
+
+void shift_array(int field_array[8][8], int a7, int a6, int a5, int a4, int a3, int a2, int a1, int a0) {
+  for(int i = 0; i < 7; i++){
+    for(int j = 0; j < 8; j++){
+      field[j][i] = field[j][i + 1];
+    }
+  }
+
+  field[0][7] = a0;
+  field[1][7] = a1;
+  field[2][7] = a2;
+  field[3][7] = a3;
+  field[4][7] = a4;
+  field[5][7] = a5;
+  field[6][7] = a6;
+  field[7][7] = a7;
+  
+  for(int t = 0; t < 100; t++){
+    display(field);
+  }
+}
+
+void player1_win(int field_array[8][8]) {
+  //set everything to zero
+  for(int i = 0; i < 8; i++){
+    for(int j = 0; j < 8; j++){
+      field[i][j] = 0;
+    }
+  }
+
+  shift_array(field_array,1,1,1,1,1,1,1,1);
+  shift_array(field_array,0,0,0,1,0,0,0,1);
+  shift_array(field_array,0,0,0,1,0,0,0,1);
+  shift_array(field_array,0,0,0,0,1,1,1,0);
+  shift_array(field_array,0,0,0,0,0,0,0,0);
+  shift_array(field_array,1,0,0,0,0,0,0,1);
+  shift_array(field_array,1,1,1,1,1,1,1,1);
+  shift_array(field_array,1,0,0,0,0,0,0,0);
+  while (true) {
+    for(int t = 0; t < 300; t++){
+      display(field);
+    }
+    for(int i = 15; i >= 0; i--){
+      digitalWrite(ser, LOW);
+      delayMicroseconds(del);
+      digitalWrite(srclk, HIGH);
+      delayMicroseconds(del);
+      digitalWrite(srclk, LOW);
+      delayMicroseconds(del);
+      digitalWrite(rclk, HIGH);
+      delayMicroseconds(del);
+      digitalWrite(rclk, LOW);
+      delayMicroseconds(del);
+    }
+    delay(300); 
+  }
+  
+  
+}
+
+void player2_win(int field_array[8][8]) {
+  //set everything to zero
+  for(int i = 0; i < 8; i++){
+    for(int j = 0; j < 8; j++){
+      field[i][j] = 0;
+    }
+  }
+
+  shift_array(field_array,1,1,1,1,1,1,1,1);
+  shift_array(field_array,0,0,0,1,0,0,0,1);
+  shift_array(field_array,0,0,0,1,0,0,0,1);
+  shift_array(field_array,0,0,0,0,1,1,1,0);
+  shift_array(field_array,0,0,0,0,0,0,0,0);
+  shift_array(field_array,1,1,1,1,0,0,0,1);
+  shift_array(field_array,1,0,0,0,1,0,0,1);
+  shift_array(field_array,1,0,0,0,1,1,1,0);
+  while (true) {
+    for(int t = 0; t < 300; t++){
+      display(field);
+    }
+    for(int i = 15; i >= 0; i--){
+      digitalWrite(ser, LOW);
+      delayMicroseconds(del);
+      digitalWrite(srclk, HIGH);
+      delayMicroseconds(del);
+      digitalWrite(srclk, LOW);
+      delayMicroseconds(del);
+      digitalWrite(rclk, HIGH);
+      delayMicroseconds(del);
+      digitalWrite(rclk, LOW);
+      delayMicroseconds(del);
+    }
+    delay(300); 
+  }
+  
+}
 
 // win state for 2 players
 bool win1 = false;
@@ -378,7 +529,14 @@ void moveSnake1(void) {
 //  snake2.y[0] = snake2.headY;
 //}
 
+void cdelay(int Del) {
+  for (int i = 0; i < Del; i++) {
+    display(field);
+  }
+}
+
 void loop() {
+  /*
   Serial.print("Switch1:  ");
   Serial.print(digitalRead(SW_pin1));
   Serial.print("\n");
@@ -398,11 +556,12 @@ void loop() {
   Serial.print("Y-axis: ");
   Serial.print(analogRead(Y_pin2));
   Serial.print("\n\n");
-  delay(Delay);
+  */
 
-  printField();
-  Serial.print("\n");
-  delay(2000);
+  display(field);
+  //Serial.print("\n");
+  
+  cdelay(200);
 
   if (win1 || win2) {
       //shoking the player
@@ -427,7 +586,12 @@ void setup() {
 
   pinMode(SW_pin2, INPUT);
   digitalWrite(SW_pin2, HIGH);
-   
+
+    pinMode(ser, OUTPUT);
+  pinMode(srclk, OUTPUT);
+  pinMode(rclk, OUTPUT);
+  pinMode(p1led, OUTPUT);
+  
   Serial.begin(9600);
 }
 
